@@ -53,7 +53,7 @@ public final class EclipseLogger extends Logger {
                        String message,
                        final Object... params ) {
         message = message.replace( '\'', '"' ); // jpav Temporary until MS fixed
-        if ( isDebugEnabled() ) Activator.log( IStatus.INFO, MessageFormat.format( message, params ), error );
+        if ( isDebugEnabled() ) Activator.plugin().log( IStatus.INFO, MessageFormat.format( message, params ), error );
     }
     
     /**
@@ -77,7 +77,7 @@ public final class EclipseLogger extends Logger {
     public void error( final Throwable error,
                        final I18nResource message,
                        final Object... params ) {
-        if ( isErrorEnabled() ) Activator.log( IStatus.ERROR, message.text( params ), error );
+        if ( isErrorEnabled() ) Activator.plugin().log( IStatus.ERROR, message.text( params ), error );
     }
     
     /**
@@ -111,7 +111,7 @@ public final class EclipseLogger extends Logger {
     public void info( final Throwable error,
                       final I18nResource message,
                       final Object... params ) {
-        if ( isInfoEnabled() ) Activator.log( IStatus.INFO, message.text( params ), error );
+        if ( isInfoEnabled() ) Activator.plugin().log( IStatus.INFO, message.text( params ), error );
     }
     
     /**
@@ -141,7 +141,7 @@ public final class EclipseLogger extends Logger {
      */
     @Override
     public boolean isInfoEnabled() {
-        return Activator.infoLoggingEnabled();
+        return Activator.plugin().infoLoggingEnabled();
     }
     
     /**
@@ -208,6 +208,6 @@ public final class EclipseLogger extends Logger {
     public void warn( final Throwable error,
                       final I18nResource message,
                       final Object... params ) {
-        if ( isWarnEnabled() ) Activator.log( IStatus.WARNING, message.text( params ), error );
+        if ( isWarnEnabled() ) Activator.plugin().log( IStatus.WARNING, message.text( params ), error );
     }
 }
