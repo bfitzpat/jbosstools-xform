@@ -25,5 +25,45 @@
          </view>
       </perspectiveExtension>
    </extension>
-
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            locationURI="popup:org.eclipse.ui.menus.popup.any?after=additions">
+         <command
+               commandId="org.jboss.tools.xform.command"
+               label="%command.label"
+               tooltip="%command.tooltip">
+            <visibleWhen>
+               <with
+                     variable="activeMenuSelection">
+                  <iterate>
+                     <adapt
+                           type="org.eclipse.core.resources.IFile">
+                     </adapt>
+                  </iterate>
+               </with>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+   </extension>
+   <extension
+         point="org.eclipse.ui.commands">
+      <command
+            defaultHandler="org.eclipse.ui.handlers.CollapseAllHandler"
+            id="org.jboss.tools.xform.command"
+            name="%command.label">
+      </command>
+   </extension>
+   <extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            id="org.jboss.tools.xform.objectContribution"
+            objectClass="org.eclipse.core.resources.IFile">
+         <action
+               class="org.jboss.tools.xform.Action"
+               id="org.jboss.tools.xform.action"
+               label="%command.label">
+         </action>
+      </objectContribution>
+   </extension>
 </plugin>

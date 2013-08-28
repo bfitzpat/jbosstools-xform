@@ -1,0 +1,15 @@
+<nt='http://www.jcp.org/jcr/nt/1.0'>
+<xform='http://jboss.org/xform/1.0'>
+
+[xform:Object] > nt:unstructured orderable
+￼￼- xform:name (string)
+- xform:primaryType (xform:Object) = xform:Object mandatory autocreated
+- xform:secondaryTypes (xform:Object) = xform:Object *
++ xform:attributes (xform:Attribute) = xform:Attribute
+
+[xform:Attribute] > nt:unstructured orderable
+- xform:name (string)
+- xform:type (xform:Object) mandatory
+- xform:readOnly (boolean) = false
+- xform:defaultValue (xform:Object)
+- xform:value (xform:Object) // Value must really match xform:type

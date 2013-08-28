@@ -11,16 +11,22 @@
  */
 package org.jboss.tools.xform;
 
-import javax.jcr.Repository;
+import java.lang.reflect.InvocationTargetException;
 
+import javax.jcr.Session;
+
+import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
+import org.eclipse.jface.dialogs.ProgressMonitorDialog;
+import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.modeshape.common.collection.Problem;
 import org.modeshape.common.collection.Problems;
 import org.modeshape.jcr.ModeShapeEngine;
 import org.modeshape.jcr.NoSuchRepositoryException;
 import org.modeshape.jcr.RepositoryConfiguration;
+import org.modeshape.jcr.api.Repository;
 import org.osgi.framework.BundleContext;
 
 /**
@@ -28,17 +34,25 @@ import org.osgi.framework.BundleContext;
  */
 public class Activator extends AbstractUIPlugin {
     
-    private static final String MODESHAPE_CONFIG = "modeshape.json";
-    
-    // The shared instance
+    // The singleton instance of this plug-in
     private static Activator plugin;
     
-    private static boolean infoEnabled;
+    /**
+     * @return the singleton instance of this plug-in.
+     */
+    public static Activator plugin() {
+        return plugin;
+    }
+    
+    private boolean infoEnabled;
+    
+    private ModeShapeEngine modeShape;
+    private Session session;
     
     /**
      * @return <code>true</code> if information-level logging is enabled
      */
-    public static boolean infoLoggingEnabled() {
+    public boolean infoLoggingEnabled() {
         return infoEnabled;
     }
     
@@ -47,9 +61,9 @@ public class Activator extends AbstractUIPlugin {
      * @param message
      * @param throwable
      */
-    public static void log( final int severity,
-                            final String message,
-                            final Throwable throwable ) {
+    public void log( final int severity,
+                     final String message,
+                     final Throwable throwable ) {
         if ( !infoLoggingEnabled() ) return;
         if ( plugin == null ) {
             if ( severity == IStatus.ERROR ) {
@@ -59,48 +73,32 @@ public class Activator extends AbstractUIPlugin {
                 System.out.println( message );
                 if ( throwable != null ) System.out.println( throwable );
             }
-        } else plugin.getLog().log( new Status( severity, plugin.getBundle().getSymbolicName(), message, throwable ) );
+        } else getLog().log( new Status( severity, getBundle().getSymbolicName(), message, throwable ) );
     }
     
     /**
      * @param severity
      * @param throwable
      */
-    public static void log( final int severity,
-                            final Throwable throwable ) {
+    public void log( final int severity,
+                     final Throwable throwable ) {
         log( severity, throwable.getMessage(), throwable );
     }
     
     /**
      * @param throwable
      */
-    public static void log( final Throwable throwable ) {
+    public void log( final Throwable throwable ) {
         log( IStatus.ERROR, throwable );
-    }
-    
-    /**
-     * @return the ModeShape repository
-     */
-    public static Repository repository() {
-        return plugin.repository;
     }
     
     /**
      * @param enabled
      *            <code>true</code> if information-level logging is enabled
      */
-    public static void setInfoEnabled( final boolean enabled ) {
+    public void setInfoEnabled( final boolean enabled ) {
         infoEnabled = enabled;
     }
-    
-    private ModeShapeEngine modeShape;
-    
-    private Repository repository;
-    
-    /**
-     * 
-     */
-    public Activator() {}
     
     /**
      * {@inheritDoc}
@@ -111,31 +109,6 @@ public class Activator extends AbstractUIPlugin {
     public void start( final BundleContext context ) throws Exception {
         super.start( context );
         plugin = this;
-        // Start ModeShape and deploy internal repository
-        modeShape = new ModeShapeEngine();
-        modeShape.start();
-        final RepositoryConfiguration config = RepositoryConfiguration.read( MODESHAPE_CONFIG );
-        final Problems problems = config.validate();
-        if ( problems.hasProblems() ) for ( final Problem problem : problems ) {
-            int severity;
-            switch ( problem.getStatus() ) {
-                case ERROR:
-                    severity = IStatus.ERROR;
-                    break;
-                case WARNING:
-                    severity = IStatus.WARNING;
-                    break;
-                default:
-                    severity = IStatus.INFO;
-            }
-            log( severity, problem.getThrowable() );
-        }
-        if ( problems.hasErrors() ) throw new RuntimeException( problems.iterator().next().getThrowable() );
-        try {
-            repository = modeShape.getRepository( config.getName() );
-        } catch ( final NoSuchRepositoryException err ) {
-            repository = modeShape.deploy( config );
-        }
     }
     
     /**
@@ -145,10 +118,62 @@ public class Activator extends AbstractUIPlugin {
      */
     @Override
     public void stop( final BundleContext context ) throws Exception {
-        // Shutdown ModeShape and all of its repositories
-        modeShape.shutdown().get();
+        // Close the workspace repository session and shutdown ModeShape
+        if ( session != null ) session.logout();
+        if ( modeShape != null ) modeShape.shutdown().get();
         // Stop plug-in
         plugin = null;
         super.stop( context );
+    }
+    
+    /**
+     * @return the session to the ModeShape workspace repository.
+     */
+    public Session workspaceRepositorySession() {
+        if ( modeShape == null ) try {
+            final ProgressMonitorDialog dlg = new ProgressMonitorDialog( null );
+            dlg.open();
+            dlg.getProgressMonitor().setTaskName( "Starting workspace repository..." );
+            dlg.run( false, false, new IRunnableWithProgress() {
+                
+                @SuppressWarnings( "synthetic-access" )
+                @Override
+                public void run( final IProgressMonitor monitor ) throws InvocationTargetException {
+                    try {
+                        modeShape = new ModeShapeEngine();
+                        modeShape.start();
+                        final RepositoryConfiguration config = RepositoryConfiguration.read( "workspaceRepository.json" );
+                        final Problems problems = config.validate();
+                        if ( problems.hasProblems() ) for ( final Problem problem : problems ) {
+                            int severity;
+                            switch ( problem.getStatus() ) {
+                                case ERROR:
+                                    severity = IStatus.ERROR;
+                                    break;
+                                case WARNING:
+                                    severity = IStatus.WARNING;
+                                    break;
+                                default:
+                                    severity = IStatus.INFO;
+                            }
+                            log( severity, problem.getThrowable() );
+                        }
+                        if ( problems.hasErrors() ) throw new RuntimeException( problems.iterator().next().getThrowable() );
+                        Repository repository;
+                        try {
+                            repository = modeShape.getRepository( config.getName() );
+                        } catch ( final NoSuchRepositoryException err ) {
+                            repository = modeShape.deploy( config );
+                        }
+                        session = repository.login( "default" );
+                    } catch ( final Exception error ) {
+                        throw new InvocationTargetException( error );
+                    }
+                }
+            } );
+        } catch ( InvocationTargetException | InterruptedException error ) {
+            throw new RuntimeException( error );
+        }
+        return session;
     }
 }

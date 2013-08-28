@@ -1,5 +1,5 @@
 {
-    "name" : "JBoss Tools XForm Repository",
+    "name" : "Workspace Repository",
     "workspaces" : {
         "predefined" : ["otherWorkspace"],
         "default" : "default",
@@ -10,5 +10,6 @@
             "roles" : ["readonly","readwrite","admin"],
             "useOnFailedLogin" : false
         }
-    }
+    },
+    "node-types" : ["cnd/metamodel.cnd"]
 }
