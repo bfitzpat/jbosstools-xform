@@ -64,7 +64,7 @@ public class Activator extends AbstractUIPlugin {
     public void log( final int severity,
                      final String message,
                      final Throwable throwable ) {
-        if ( !infoLoggingEnabled() ) return;
+        if ( severity == IStatus.INFO && !infoLoggingEnabled() ) return;
         if ( plugin == null ) {
             if ( severity == IStatus.ERROR ) {
                 System.err.println( message );
